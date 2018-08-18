@@ -1,29 +1,41 @@
-V5.2.3 (November 8th, 2017):
+V5.4.0 (August 10th, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 Manager App:
- • FIXED: Empty Locations on New Installs
- • FIXED: Tweaked the way app updates messages are determined
- • ADDED: Workaround step added to stop the issues preventing users from uninstalling the App
- • UPDATED: Minor Device Health Tweaks
+ • ADDED: Pushover Manager Integration
 
-Automation App 5.1.8:
-• FIXED: Tweaks to the Uninstall Process
-• FIXED: More Cleanups
+Automation App 5.4.0:
+ • ADDED: Pushover Manager Integration
 
-V5.2.2 (November 7th, 2017):
+V5.3.9 (July 30th, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 Manager App:
- • FIXED: Minor Bug Fixes and Code Cleanups.
+ • ADDED: Camera Motion Zone Filtering (Requires Nest Aware and NST Streaming Service)
+ • FIXED: Bug fixes and Code Cleanups/Optimizations
 
-V5.2.1 (October 14th, 2017):
+Automation App 5.3.6:
+• REMOVED: Support for Contact Book
+
+V5.3.8 (July 4th, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 Manager App:
- • UPDATED: I have changed the app to no longer use our tokens and it will tell you when you are missing the required id and secret.
+ • FIXED: Storage App file no longer required
+ • FIXED: Bug fixes and Code Cleanups
 
-V5.2.0 (July 22nd, 2017):
+Automation App 5.3.5:
+• FIXED: Converted degree symbols to unicode
+• ADDED: Storage codebase is now part of Automations file
+• FIXED: Code Cleanups and State Usage Reductions
+
+V5.3.7 (May 31st, 2018):
 ▔▔▔▔▔▔▔▔▔▔▔
 Manager App:
- • FIXED: NP issues
+ • ADDED: New Storage App to help eliminate State Size issues (It's not storing any data yet)
+ • ADDED: Maintenance Commands can now be run from the Diagnostics Web Interface (More Commands to Come)
+ • UPDATED: Will remove un-needed or broken automations
+ • FIXED: Converted degree symbols to unicode
+ • FIXED: Bug fixes and Code Cleanups
 
-Automation App 5.1.7:
-• FIXED: NP issues
+Automation App 5.3.4:
+• FIXED: Converted degree symbols to unicode
+• FIXED: Code Cleanups and State Usage Reductions
+

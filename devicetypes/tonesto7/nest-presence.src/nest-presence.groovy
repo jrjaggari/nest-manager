@@ -3,7 +3,7 @@
  *	Author: Anthony S. (@tonesto7)
  *	Co-Authors: Ben W. (@desertBlade), Eric S. (@E_Sch)
  *
- *	Copyright (C) 2017 Anthony S., Ben W.
+ *	Copyright (C) 2017, 2018 Anthony S., Ben W.
  * 	Licensing Info: Located at https://raw.githubusercontent.com/tonesto7/nest-manager/master/LICENSE.md
  */
 
@@ -11,7 +11,7 @@ import java.text.SimpleDateFormat
 
 preferences {  }
 
-def devVer() { return "5.2.0" }
+def devVer() { return "5.3.6" }
 
 // for the UI
 metadata {
@@ -66,10 +66,10 @@ metadata {
 		valueTile("devTypeVer", "device.devTypeVer", width: 2, height: 1, decoration: "flat") {
 			state("default", label: 'Device Type:\nv${currentValue}')
 		}
-		htmlTile(name:"html", action: "getHtml", width: 6, height: 4, whitelist: ["raw.githubusercontent.com", "cdn.rawgit.com"])
+		// htmlTile(name:"html", action: "getHtml", width: 6, height: 4, whitelist: ["raw.githubusercontent.com", "cdn.rawgit.com"])
 
 		main ("presence")
-		details ("presence", "nestPresence", "refresh", "html")
+		details ("presence", "nestPresence", "lastUpdateDt", "apiStatus", "devTypeVer", "refresh")
 	}
 }
 
@@ -79,8 +79,7 @@ mappings {
 
 void installed() {
 	Logger("installed...")
-	initialize()
-	state?.isInstalled = true
+	runIn(5, "initialize", [overwrite: true])
 }
 
 def initialize() {
@@ -89,6 +88,7 @@ def initialize() {
 	if (!state.updatedLastRanAt || now() >= state.updatedLastRanAt + 2000) {
 		state.updatedLastRanAt = now()
 		verifyHC()
+		state?.isInstalled = true
 	} else {
 		log.trace "initialize(): Ran within last 2 seconds - SKIPPING"
 	}
@@ -96,7 +96,7 @@ def initialize() {
 
 void updated() {
 	Logger("updated...")
-	initialize()
+	runIn(5, "initialize", [overwrite: true])
 }
 
 def useTrackedHealth() { return state?.useTrackedHealth ?: false }
@@ -237,13 +237,15 @@ def processEvent(data) {
 	}
 	catch (ex) {
 		log.error "generateEvent Exception:", ex
-		exceptionDataHandler(ex.message, "generateEvent")
+		exceptionDataHandler(ex?.message, "generateEvent")
 	}
 }
 
 def getDataByName(String name) {
 	state[name] ?: device.getDataValue(name)
 }
+
+def getDevTypeId() { return device?.getTypeId() }
 
 def getDeviceStateData() {
 	return getState()
@@ -393,7 +395,7 @@ void setPresence() {
 	}
 	catch (ex) {
 		log.error "setPresence Exception:", ex
-		exceptionDataHandler(ex.message, "setPresence")
+		exceptionDataHandler(ex?.message, "setPresence")
 	}
 }
 
@@ -405,7 +407,7 @@ void setAway() {
 	}
 	catch (ex) {
 		log.error "setAway Exception:", ex
-		exceptionDataHandler(ex.message, "setAway")
+		exceptionDataHandler(ex?.message, "setAway")
 	}
 }
 
@@ -417,7 +419,7 @@ void setHome() {
 	}
 	catch (ex) {
 		log.error "setHome Exception:", ex
-		exceptionDataHandler(ex.message, "setHome")
+		exceptionDataHandler(ex?.message, "setHome")
 	}
 }
 
@@ -425,29 +427,30 @@ void setHome() {
 |										LOGGING FUNCTIONS										|
 *************************************************************************************************/
 void Logger(msg, logType = "debug") {
-	def smsg = state?.showLogNamePrefix ? "${device.displayName}: ${msg}" : "${msg}"
-	switch (logType) {
-		case "trace":
-			log.trace "${smsg}"
-			break
-		case "debug":
-			log.debug "${smsg}"
-			break
-		case "info":
-			log.info "${smsg}"
-			break
-		case "warn":
-			log.warn "${smsg}"
-			break
-		case "error":
-			log.error "${smsg}"
-			break
-		default:
-			log.debug "${smsg}"
-			break
-	}
+	def smsg = state?.showLogNamePrefix ? "${device.displayName} (v${devVer()}) | ${msg}" : "${msg}"
 	if(state?.enRemDiagLogging) {
 		parent.saveLogtoRemDiagStore(smsg, logType, "Presence")
+	} else {
+		switch (logType) {
+			case "trace":
+				log.trace "${smsg}"
+				break
+			case "debug":
+				log.debug "${smsg}"
+				break
+			case "info":
+				log.info "${smsg}"
+				break
+			case "warn":
+				log.warn "${smsg}"
+				break
+			case "error":
+				log.error "${smsg}"
+				break
+			default:
+				log.debug "${smsg}"
+				break
+		}
 	}
 }
 
@@ -499,7 +502,6 @@ def getTimeDiffSeconds(strtDate, stpDate=null, methName=null) {
 	//LogTrace("[GetTimeDiffSeconds] StartDate: $strtDate | StopDate: ${stpDate ?: "Not Sent"} | MethodName: ${methName ?: "Not Sent"})")
 	try {
 		if(strtDate) {
-			//if(strtDate?.contains("dtNow")) { return 10000 }
 			def now = new Date()
 			def stopVal = stpDate ? stpDate.toString() : getDtNow()
 			def startDt = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate)
@@ -515,42 +517,26 @@ def getTimeDiffSeconds(strtDate, stpDate=null, methName=null) {
 	}
 }
 
-def getFileBase64(url,preType,fileType) {
-	def params = [
-		uri: url,
-		contentType: '$preType/$fileType'
-	]
+def getFileBase64(url, preType, fileType) {
+	def params = [uri: url, contentType: "$preType/$fileType"]
 	httpGet(params) { resp ->
-		if(resp.data) {
-			def respData = resp?.data
-			ByteArrayOutputStream bos = new ByteArrayOutputStream()
-			int len
-			int size = 4096
-			byte[] buf = new byte[size]
-			while ((len = respData.read(buf, 0, size)) != -1)
-				bos.write(buf, 0, len)
-			buf = bos.toByteArray()
-			//log.debug "buf: $buf"
-			String s = buf?.encodeBase64()
-			//log.debug "resp: ${s}"
-			return s ? "data:${preType}/${fileType};base64,${s.toString()}" : null
+		if(resp?.status == 200) {
+			if(resp.data) {
+				def respData = resp?.data
+				byte[] byteData = resp?.data?.getBytes()
+				String enc = byteData?.encodeBase64()
+				// log.debug "enc: ${enc}"
+				return enc ? "data:${preType}/${fileType};base64,${enc?.toString()}" : null
+			}
+		} else {
+			LogAction("getFileBase64 Resp: ${resp?.status} ${url}", "error")
+			exceptionDataHandler("resp ${ex?.response?.status} ${url}", "getFileBase64")
+			return null
 		}
 	}
 }
 
-def getCssData() {
-	def cssData = null
-	def htmlInfo = state?.htmlInfo
-	if(htmlInfo?.cssUrl && htmlInfo?.cssVer) {
-		cssData = getFileBase64(htmlInfo.cssUrl, "text", "css")
-		state?.cssVer = htmlInfo?.cssVer
-	} else {
-		cssData = getFileBase64(cssUrl(), "text", "css")
-	}
-	return cssData
-}
-
-def cssUrl() { return "https://raw.githubusercontent.com/tonesto7/nest-manager/master/Documents/css/ST-HTML.min.css" }
+def hasHtml() { return false }
 
 def getHtml() {
 	try {
@@ -568,7 +554,7 @@ def getHtml() {
 				<meta http-equiv="expires" content="Tue, 01 Jan 1980 1:00:00 GMT"/>
 				<meta http-equiv="pragma" content="no-cache"/>
 				<meta name="viewport" content="width = device-width, user-scalable=no, initial-scale=1.0">
-				<link rel="stylesheet prefetch" href="${getCssData()}"/>
+				<link rel="stylesheet prefetch" type="text/css" href="https://raw.githubusercontent.com/tonesto7/nest-manager/master/Documents/css/ST-HTML.min.css"/>
 			</head>
 			<body>
 				${clientBl}
@@ -581,10 +567,10 @@ def getHtml() {
 	}
 	catch (ex) {
 		log.error "getHtml Exception:", ex
-		exceptionDataHandler(ex.message, "getHtml")
+		exceptionDataHandler(ex?.message, "getHtml")
 	}
 }
 
-private def textDevName()   { return "Nest Presence${appDevName()}" }
-private def appDevType()    { return false }
-private def appDevName()    { return appDevType() ? " (Dev)" : "" }
+private def textDevName() { return "Nest Presence${appDevName()}" }
+private def appDevType()  { return false }
+private def appDevName()  { return appDevType() ? " (Dev)" : "" }
